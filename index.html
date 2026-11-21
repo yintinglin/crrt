@@ -1,0 +1,1293 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#16a34a">
+  <meta name="description" content="CVVH 劑量計算器：依置換液劑量（RF dose）、體重、UF net、PBP、血流速度 Qb、Hct 與 pre-dilution 比例，計算 Filtration Fraction（FF）、稀釋係數 DF 與預估有效劑量。">
+  <title>CVVH 劑量計算器 v261121B</title>
+  <style>
+    :root {
+      --green: #16a34a;
+      --green-dark: #166534;
+      --green-soft: #ecfdf3;
+      --blue: #2563eb;
+      --blue-dark: #1e40af;
+      --amber: #d97706;
+      --amber-dark: #92400e;
+      --red: #dc2626;
+      --red-dark: #991b1b;
+      --ink: #172033;
+      --text: #374151;
+      --muted: #64748b;
+      --subtle: #94a3b8;
+      --line: #e3e9e6;
+      --surface: #ffffff;
+      --page: #f1f4f3;
+      --danger: #991b1b;
+      --warning: #92400e;
+      --numeric-font: ui-rounded, "SF Pro Rounded", "Segoe UI", Arial, sans-serif;
+      --ui-font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html {
+      font-family: var(--ui-font);
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      background: var(--page);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background: var(--page);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .page {
+      min-height: 100svh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    }
+
+    .app {
+      width: min(100%, 1080px);
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid #dfe7e3;
+      border-radius: 20px;
+      box-shadow: 0 18px 50px -25px rgba(20, 60, 40, 0.35);
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 26px;
+      background: #fbfdfc;
+      border-bottom: 1px solid #edf1ef;
+    }
+
+    .brand {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      background: var(--green);
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.18);
+    }
+
+    .brand-icon svg { width: 21px; height: 21px; }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(18px, 2.6vw, 21px);
+      line-height: 1.25;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      word-break: keep-all;
+    }
+
+    .subtitle {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .version-badge {
+      flex: 0 0 auto;
+      padding: 5px 11px;
+      border: 1px solid #bbf7d0;
+      border-radius: 999px;
+      color: #15803d;
+      background: var(--green-soft);
+      font-family: var(--numeric-font);
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 0.15px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(365px, 0.94fr) minmax(495px, 1.26fr);
+    }
+
+    .workspace > * { min-width: 0; }
+
+    .controls,
+    .results {
+      padding: 26px;
+    }
+
+    .controls { border-right: 1px solid #edf1ef; }
+
+    .section-label {
+      display: block;
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 750;
+      letter-spacing: 0.45px;
+    }
+
+    input[type="range"]:focus-visible,
+    .copy-btn:focus-visible {
+      outline: 3px solid rgba(37, 99, 235, 0.28);
+      outline-offset: 3px;
+    }
+
+    .range-field { margin-bottom: 20px; }
+    .range-field:last-child { margin-bottom: 0; }
+
+    .range-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .range-heading label {
+      color: var(--text);
+      font-size: 14.5px;
+      line-height: 1.4;
+      font-weight: 700;
+    }
+
+    .range-value {
+      flex: 0 0 auto;
+      color: var(--green);
+      font-family: var(--numeric-font);
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .range-value .unit {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .range-control {
+      position: relative;
+      padding: 1px 0;
+    }
+
+    input[type="range"] {
+      --range-progress: 50%;
+      display: block;
+      width: 100%;
+      height: 42px;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      touch-action: pan-y;
+      accent-color: var(--green);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 9px;
+      border: 0;
+      border-radius: 999px;
+      background: linear-gradient(to right, var(--green) 0 var(--range-progress), #d7dfdb var(--range-progress) 100%);
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.09);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      width: 29px;
+      height: 29px;
+      margin-top: -10px;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.28);
+      cursor: grab;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input[type="range"]:active::-webkit-slider-thumb { cursor: grabbing; }
+
+    input[type="range"]::-moz-range-track {
+      height: 9px;
+      border: 0;
+      border-radius: 999px;
+      background: #d7dfdb;
+      box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.09);
+    }
+
+    input[type="range"]::-moz-range-progress {
+      height: 9px;
+      border-radius: 999px;
+      background: var(--green);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 21px;
+      height: 21px;
+      border: 4px solid #fff;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.28);
+      cursor: grab;
+    }
+
+    .range-scale {
+      display: flex;
+      justify-content: space-between;
+      margin-top: -4px;
+      color: #7c8a96;
+      font-family: var(--numeric-font);
+      font-size: 12px;
+      line-height: 1.3;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+    }
+
+    .results {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .results-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .scope-note {
+      margin: 0;
+      padding: 10px 13px;
+      border: 1px solid #fed7aa;
+      border-radius: 10px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 12.5px;
+      line-height: 1.55;
+      font-weight: 700;
+    }
+
+    .error-box {
+      padding: 14px 16px;
+      border-left: 4px solid var(--red);
+      border-radius: 10px;
+      background: #fef2f2;
+      color: var(--red-dark);
+      font-size: 13.5px;
+      line-height: 1.6;
+      font-weight: 650;
+    }
+
+    .dose-card {
+      padding: 16px 0 15px;
+      border-top: 3px solid var(--accent);
+      border-bottom: 1px solid #edf1ef;
+      --accent: var(--green);
+      --accent-dark: var(--green-dark);
+    }
+
+    .dose-card.state-green { --accent: var(--green); --accent-dark: var(--green-dark); }
+    .dose-card.state-red { --accent: var(--red); --accent-dark: var(--red-dark); }
+    .dose-card.state-amber { --accent: var(--amber); --accent-dark: var(--amber-dark); }
+    .dose-card.state-blue { --accent: var(--blue); --accent-dark: var(--blue-dark); }
+
+    .dose-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-bottom: 12px;
+    }
+
+    .dose-title {
+      margin: 0;
+      color: var(--accent-dark);
+      font-size: 16px;
+      line-height: 1.35;
+      font-weight: 800;
+    }
+
+    .dose-regimen {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.5;
+      font-weight: 600;
+    }
+
+    .status-badge {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      line-height: 1.3;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .status-badge.is-green {
+      color: #166534;
+      background: #dcfce7;
+      border: 1px solid #bbf7d0;
+    }
+
+    .status-badge.is-red {
+      color: #991b1b;
+      background: #fee2e2;
+      border: 1px solid #fecaca;
+    }
+
+    .status-badge.is-amber {
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+    }
+
+    .dose-values {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .dose-values.dose-two {
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .dose-metric {
+      min-width: 0;
+      text-align: left;
+    }
+
+    .dose-values.dose-two .dose-metric:nth-child(2) {
+      text-align: right;
+    }
+
+    .metric-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+      font-weight: 650;
+    }
+
+    .metric-value {
+      display: block;
+      color: #111827;
+      font-family: var(--numeric-font);
+      font-size: 30px;
+      line-height: 1.05;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .dose-values.dose-two .metric-value {
+      font-size: 26px;
+    }
+
+    .metric-unit {
+      margin-left: 4px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .dose-hint {
+      margin: 11px 0 0;
+      padding: 9px 12px;
+      border-radius: 9px;
+      font-size: 13px;
+      line-height: 1.55;
+      font-weight: 650;
+    }
+
+    .dose-hint.is-red {
+      border-left: 4px solid var(--red);
+      background: #fef2f2;
+      color: var(--red-dark);
+    }
+
+    .dose-hint.is-amber {
+      border-left: 4px solid var(--amber);
+      background: #fffbeb;
+      color: var(--amber-dark);
+    }
+
+    .dose-detail {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .intermediates-box {
+      overflow: hidden;
+      border: 1px solid #e0e7e3;
+      border-radius: 13px;
+      background: #f7f9f8;
+    }
+
+    .intermediates-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      text-align: center;
+    }
+
+    .intermediate-cell {
+      min-width: 0;
+      padding: 12px 6px;
+    }
+
+    .intermediate-cell + .intermediate-cell {
+      border-left: 1px solid #e0e7e3;
+    }
+
+    .intermediate-name {
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .intermediate-sub {
+      display: block;
+      color: var(--subtle);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .intermediate-number {
+      overflow-wrap: anywhere;
+      color: var(--text);
+      font-family: var(--numeric-font);
+      font-size: 16px;
+      line-height: 1.35;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .formula-note {
+      padding: 10px 12px;
+      border-top: 1px solid #e0e7e3;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .consult-box {
+      padding: 14px 16px;
+      border: 1px solid #e0e7e3;
+      border-radius: 13px;
+      background: #f7f9f8;
+    }
+
+    .consult-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .copy-btn {
+      flex: 0 0 auto;
+      min-height: 32px;
+      padding: 4px 12px;
+      border: 1px solid #bbf7d0;
+      border-radius: 999px;
+      color: #15803d;
+      background: var(--green-soft);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .copy-btn:hover { background: #dcfce7; }
+
+    .consult-text {
+      margin: 0;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.65;
+      font-weight: 650;
+      overflow-wrap: anywhere;
+    }
+
+    .logic-notes,
+    .references {
+      padding-top: 13px;
+      border-top: 1px solid #edf1ef;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.7;
+      overflow-wrap: anywhere;
+    }
+
+    .logic-notes p,
+    .references p { margin: 0; }
+    .logic-notes p + p,
+    .references p + p { margin-top: 4px; }
+
+    .references a {
+      color: var(--green-dark);
+      font-weight: 650;
+    }
+
+    .disclaimer {
+      padding: 16px 26px 17px;
+      border-top: 1px solid #f4d6d6;
+      color: #a11b1b;
+      background: #fff7f7;
+      font-size: 12.5px;
+      line-height: 1.65;
+    }
+
+    .disclaimer-title {
+      margin: 0 0 6px;
+      color: var(--danger);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .disclaimer p { margin: 0; }
+    .disclaimer p + p { margin-top: 7px; }
+
+    .footer-version {
+      color: var(--muted);
+      font-family: var(--numeric-font);
+    }
+
+    .noscript {
+      margin: 14px;
+      padding: 12px;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      color: #991b1b;
+      background: #fef2f2;
+      font-size: 14px;
+    }
+
+    @media (min-width: 961px) {
+      .page {
+        padding: max(30px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(38px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+      }
+
+      .app {
+        border-radius: 22px;
+        box-shadow: 0 22px 60px -28px rgba(20, 60, 40, 0.38);
+      }
+
+      .app-header { padding: 24px 32px; }
+      .brand { gap: 14px; }
+      .brand-icon { width: 42px; height: 42px; border-radius: 11px; }
+      .brand-icon svg { width: 23px; height: 23px; }
+      h1 { font-size: 23px; }
+      .subtitle { font-size: 14px; }
+      .version-badge { padding: 6px 12px; font-size: 13px; }
+
+      .controls,
+      .results { padding: 32px; }
+
+      .section-label { margin-bottom: 16px; font-size: 14px; }
+      .range-field { margin-bottom: 22px; }
+      .range-heading label { font-size: 15px; }
+      .range-value { font-size: 29px; }
+      .range-value .unit { font-size: 14px; }
+      input[type="range"] { height: 44px; }
+      input[type="range"]::-webkit-slider-runnable-track { height: 10px; }
+      input[type="range"]::-webkit-slider-thumb { width: 32px; height: 32px; margin-top: -11px; }
+      input[type="range"]::-moz-range-track,
+      input[type="range"]::-moz-range-progress { height: 10px; }
+      input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+      .range-scale { font-size: 12.5px; }
+
+      .results,
+      .results-stack { gap: 18px; }
+      .dose-card { padding: 18px 0 17px; }
+      .dose-title { font-size: 17.5px; }
+      .dose-regimen { font-size: 13px; }
+      .metric-label { font-size: 12.5px; }
+      .metric-value { font-size: 34px; }
+      .dose-values.dose-two .metric-value { font-size: 28px; }
+      .metric-unit { font-size: 14.5px; }
+      .dose-detail { margin-top: 12px; font-size: 13px; }
+      .intermediate-cell { padding: 14px 8px; }
+      .intermediate-name { font-size: 12.5px; }
+      .intermediate-number { font-size: 17px; }
+      .formula-note { padding: 11px 13px; font-size: 12.5px; }
+      .logic-notes, .references { padding-top: 15px; font-size: 13px; line-height: 1.75; }
+      .disclaimer { padding: 18px 32px 20px; font-size: 13px; }
+      .disclaimer-title { font-size: 13.5px; }
+    }
+
+    @media (max-width: 960px) {
+      .workspace { grid-template-columns: 1fr; }
+      .controls { border-right: 0; border-bottom: 1px solid #edf1ef; }
+    }
+
+    @media (min-width: 601px) and (max-width: 960px) {
+      .page {
+        padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(30px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+      }
+
+      .app { width: min(100%, 780px); }
+      .app-header { padding: 22px 28px; }
+      .brand-icon { width: 40px; height: 40px; }
+      h1 { font-size: 22px; }
+      .subtitle { font-size: 13.5px; }
+      .version-badge { font-size: 13px; }
+      .controls,
+      .results { padding: 28px 30px; }
+      .range-heading label { font-size: 15px; }
+      .range-value { font-size: 28px; }
+      .metric-value { font-size: 32px; }
+      .dose-values.dose-two .metric-value { font-size: 27px; }
+      .intermediate-number { font-size: 16.5px; }
+      .logic-notes,
+      .references { font-size: 13px; }
+      .disclaimer { padding: 17px 30px 19px; font-size: 13px; }
+    }
+
+    @media (max-width: 600px) {
+      .page { padding: 14px 10px 20px; }
+      .app { border-radius: 16px; }
+      .controls, .results { padding: 22px; }
+    }
+
+    @media (max-width: 480px) {
+      .app-header { padding: 17px 18px; gap: 12px; }
+      .brand { gap: 10px; }
+      .brand-icon { width: 36px; height: 36px; }
+      .subtitle { font-size: 12.5px; }
+      .version-badge { padding: 4px 9px; font-size: 12px; }
+      .controls, .results { padding: 20px 18px; }
+      .range-heading label { font-size: 14px; }
+      .range-value { font-size: 24px; }
+      .range-value .unit { font-size: 12.5px; }
+      .metric-value { font-size: 28px; }
+      .dose-values.dose-two .metric-value { font-size: 24px; }
+      .intermediate-number { font-size: 14.5px; }
+      .disclaimer { padding: 15px 18px 17px; }
+    }
+
+    @media (max-width: 360px) {
+      .app-header { align-items: flex-start; }
+      .version-badge { margin-top: 2px; }
+      .dose-values.dose-two { grid-template-columns: 1fr; row-gap: 12px; }
+      .dose-values.dose-two .dose-metric:nth-child(2) { text-align: left; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="app" aria-labelledby="app-title">
+      <header class="app-header">
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5h8a2 2 0 012 2v10a2 2 0 01-2 2H8a2 2 0 01-2-2V7a2 2 0 012-2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v3m0 14v3M9.5 9v6m2.5-6v6m2.5-6v6M18 10h3m-3 4h3" />
+            </svg>
+          </div>
+          <div>
+            <h1 id="app-title">CVVH 劑量計算器</h1>
+            <p class="subtitle">FF 與預估有效劑量 · 只適用 CVVH（不可用於 CVVHD／CVVHDF）</p>
+          </div>
+        </div>
+        <span class="version-badge" aria-label="版本 v261121B">v261121B</span>
+      </header>
+
+      <div class="workspace">
+        <section class="controls" aria-label="CVVH 設定參數">
+          <span class="section-label">CVVH 處方與病人參數</span>
+
+          <div class="range-field">
+            <div class="range-heading">
+              <label for="dose-slider">置換液劑量 RF dose（不含 PBP、UF net）</label>
+              <output class="range-value" for="dose-slider" aria-live="polite"><span id="dose-val">20</span><span class="unit"> mL/kg/h</span></output>
+            </div>
+            <div class="range-control">
+              <input type="range" id="dose-slider" min="5" max="50" value="20" step="0.5" aria-label="置換液劑量 RF dose（不含 PBP、UF net），mL/kg/h">
+            </div>
+            <div class="range-scale" aria-hidden="true"><span>5 mL/kg/h</span><span>50 mL/kg/h</span></div>
+          </div>
+
+          <div class="range-field">
+            <div class="range-heading">
+              <label for="weight-slider">體重 Body weight</label>
+              <output class="range-value" for="weight-slider" aria-live="polite"><span id="weight-val">70</span><span class="unit"> kg</span></output>
+            </div>
+            <div class="range-control">
+              <input type="range" id="weight-slider" min="30" max="200" value="70" step="1" aria-label="體重 Body weight，公斤">
+            </div>
+            <div class="range-scale" aria-hidden="true"><span>30 kg</span><span>200 kg</span></div>
+          </div>
+
+          <div class="range-field">
+            <div class="range-heading">
+              <label for="ufnet-slider">UF net</label>
+              <output class="range-value" for="ufnet-slider" aria-live="polite"><span id="ufnet-val">100</span><span class="unit"> mL/h</span></output>
+            </div>
+            <div class="range-control">
+              <input type="range" id="ufnet-slider" min="0" max="1000" value="100" step="10" aria-label="UF net，mL/h">
+            </div>
+            <div class="range-scale" aria-hidden="true"><span>0 mL/h</span><span>1000 mL/h</span></div>
+          </div>
+
+          <div class="range-field">
+            <div class="range-heading">
+              <label for="pbp-slider">PBP</label>
+              <output class="range-value" for="pbp-slider" aria-live="polite"><span id="pbp-val">500</span><span class="unit"> mL/h</span></output>
+            </div>
+            <div class="range-control">
+              <input type="range" id="pbp-slider" min="0" max="2000" value="500" step="10" aria-label="PBP，mL/h">
+            </div>
+            <div class="range-scale" aria-hidden="true"><span>0 mL/h</span><span>2000 mL/h</span></div>
+          </div>
+
+          <div class="range-field">
+            <div class="range-heading">
+              <label for="qb-slider">血流速度 Blood flow (Qb)</label>
+              <output class="range-value" for="qb-slider" aria-live="polite"><span id="qb-val">100</span><span class="unit"> mL/min</span></output>
+            </div>
+            <div class="range-control">
+              <input type="range" id="qb-slider" min="50" max="400" value="100" step="5" aria-label="血流速度 Blood flow Qb，mL/min">
+            </div>
+            <div class="range-scale" aria-hidden="true"><span>50 mL/min</span><span>400 mL/min</span></div>
+          </div>
+
+          <div class="range-field">
+            <div class="range-heading">
+              <label for="hct-slider">血比容 Hct</label>
+              <output class="range-value" for="hct-slider" aria-live="polite"><span id="hct-val">30</span><span class="unit">%</span></output>
+            </div>
+            <div class="range-control">
+              <input type="range" id="hct-slider" min="15" max="60" value="30" step="1" aria-label="血比容 Hct，百分比">
+            </div>
+            <div class="range-scale" aria-hidden="true"><span>15%</span><span>60%</span></div>
+          </div>
+
+          <div class="range-field">
+            <div class="range-heading">
+              <label for="pre-slider">Pre-dilution 比例</label>
+              <output class="range-value" for="pre-slider" aria-live="polite"><span id="pre-val">70</span><span class="unit">%</span></output>
+            </div>
+            <div class="range-control">
+              <input type="range" id="pre-slider" min="0" max="100" value="70" step="1" aria-label="Pre-dilution 比例，百分比">
+            </div>
+            <div class="range-scale" aria-hidden="true"><span>0%</span><span>100%</span></div>
+          </div>
+        </section>
+
+        <section class="results" aria-label="計算結果" aria-live="polite">
+          <p class="scope-note">只適用 CVVH，不可用於 CVVHD／CVVHDF；PBP 已併入 pre-dilution。</p>
+
+          <div id="error-box" class="error-box" role="alert" hidden></div>
+
+          <div id="results-valid" class="results-stack">
+            <article id="ff-card" class="dose-card state-red">
+              <div class="dose-heading">
+                <div>
+                  <h2 class="dose-title">Filtration Fraction (FF)</h2>
+                  <p class="dose-regimen">過濾分率 · 目標 &lt; 25%</p>
+                </div>
+                <span id="ff-badge" class="status-badge is-red">FF 偏高</span>
+              </div>
+              <div class="dose-values">
+                <div class="dose-metric">
+                  <span class="metric-label">濾過分率</span>
+                  <span class="metric-value"><span id="ff-val">35.2</span><span class="metric-unit">%</span></span>
+                </div>
+              </div>
+              <p id="ff-hint" class="dose-hint is-red">容易 clot：可提高 Qb、提高 pre-dilution 比例，必要時降低 RF dose</p>
+            </article>
+
+            <article id="dose-card" class="dose-card state-green">
+              <div class="dose-heading">
+                <div>
+                  <h2 class="dose-title">預估有效劑量 Effective (predicted) dose</h2>
+                  <p class="dose-regimen">Solute clearance · 目標 20–35 mL/kg/h</p>
+                </div>
+                <span id="dose-badge" class="status-badge is-green">劑量適宜</span>
+              </div>
+              <div class="dose-values">
+                <div class="dose-metric">
+                  <span class="metric-label">Effective (predicted) dose / Solute clearance</span>
+                  <span class="metric-value"><span id="clearance-val">21.1</span><span class="metric-unit">mL/kg/h</span></span>
+                </div>
+              </div>
+              <p id="dose-hint" class="dose-hint is-amber" hidden></p>
+              <p class="dose-detail">未扣除停機時間</p>
+            </article>
+
+            <article class="dose-card state-blue">
+              <div class="dose-heading">
+                <div>
+                  <h2 class="dose-title">Total UF 與稀釋係數 DF</h2>
+                  <p class="dose-regimen">總超濾量 · Dilution factor</p>
+                </div>
+              </div>
+              <div class="dose-values dose-two">
+                <div class="dose-metric">
+                  <span class="metric-label">Total UF</span>
+                  <span class="metric-value"><span id="total-uf-val">2000</span><span class="metric-unit">mL/h</span></span>
+                </div>
+                <div class="dose-metric">
+                  <span class="metric-label">Dilution factor (DF)</span>
+                  <span class="metric-value" id="df-val">0.739</span>
+                </div>
+              </div>
+              <p class="dose-detail">Total UF = RF + PBP + UF net；DF = Qp ÷ (Qp + Qpre)，DF 以血漿流速 Qp 計算（非全血 Qb）。</p>
+            </article>
+
+            <div class="intermediates-box" aria-label="中間計算流速">
+              <div class="intermediates-grid">
+                <div class="intermediate-cell">
+                  <div class="intermediate-name">RF <span class="intermediate-sub">置換液</span></div>
+                  <div class="intermediate-number" id="disp-rf">1400 mL/h</div>
+                </div>
+                <div class="intermediate-cell">
+                  <div class="intermediate-name">Qpre <span class="intermediate-sub">前稀釋液</span></div>
+                  <div class="intermediate-number" id="disp-qpre">1480 mL/h</div>
+                </div>
+                <div class="intermediate-cell">
+                  <div class="intermediate-name">Qp <span class="intermediate-sub">血漿流速</span></div>
+                  <div class="intermediate-number" id="disp-qp">4200 mL/h</div>
+                </div>
+              </div>
+              <div class="formula-note">RF = RF dose × 體重；Qpre = RF × Pre% + PBP；Qp = Qb × 60 × (1 − Hct%)；DF 以血漿流速 Qp 計算（非全血 Qb）。</div>
+            </div>
+
+            <div class="consult-box">
+              <div class="consult-kicker">
+                <span>紀錄用語</span>
+                <button type="button" class="copy-btn" id="copy-btn" aria-label="複製紀錄用語">複製</button>
+              </div>
+              <p class="consult-text" id="consult-text">CVVH：Qb 100 mL/min、RF 1400 mL/h（pre 70%）、PBP 500 mL/h、UF net 100 mL/h → FF 35.2%、預估有效劑量 21.1 mL/kg/h</p>
+            </div>
+          </div>
+
+          <div id="logic-notes" class="logic-notes">
+            <p>・<strong>適用範圍：</strong>只適用 CVVH，不可用於 CVVHD／CVVHDF；PBP 已併入 pre-dilution。</p>
+            <p>・<strong>FF 判讀：</strong>FF &lt; 25% 較理想；FF ≥ 25% 容易 clot：可提高 Qb、提高 pre-dilution 比例，必要時降低 RF dose。</p>
+            <p>・<strong>劑量判讀：</strong>預估有效劑量（effective / predicted dose，未扣除停機時間）20–35 mL/kg/h 為適宜區間；&lt; 20 mL/kg/h 為劑量不足。</p>
+            <p>・<strong>計算公式：</strong>Total UF = RF + PBP + UF net；DF = Qp ÷ (Qp + Qpre)，DF 以血漿流速 Qp 計算（非全血 Qb）；FF = Total UF ÷ (Qp + Qpre) × 100%；預估有效劑量 = Total UF × DF ÷ 體重。</p>
+          </div>
+
+          <div id="references" class="references">
+            <p class="references-title"><strong>參考資料 References</strong></p>
+            <p>公式與判讀原則來源：whyareyoukidney（2018），CVVH 實用篇，FF 和 clearance 快速計算與應用。<a href="https://whyareyoukidney.blogspot.com/2018/11/cvvhffclearance.html" target="_blank" rel="noopener">whyareyoukidney 原文</a></p>
+          </div>
+        </section>
+      </div>
+
+      <footer class="disclaimer">
+        <p class="disclaimer-title">⚠️ 免責聲明 / Disclaimer</p>
+        <p>本工具僅供醫療專業人員參考，不能取代臨床判斷；設定前請依院內 CRRT 規範確認。公式來源見下方參考資料。</p>
+        <p class="footer-version"><strong>版本：</strong>v261121B</p>
+      </footer>
+
+      <noscript><div class="noscript">此計算器需要啟用 JavaScript 才能更新計算結果。</div></noscript>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // ===== CVVH dosing core
+      const APP_VERSION = 'v261121B';
+      const CLOT_HINT = '容易 clot：可提高 Qb、提高 pre-dilution 比例，必要時降低 RF dose';
+
+      function toFiniteNumber(value, fallback) {
+        if (typeof value === 'number') {
+          return Number.isFinite(value) ? value : fallback;
+        }
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (trimmed === '') return fallback;
+          const n = Number(trimmed);
+          return Number.isFinite(n) ? n : fallback;
+        }
+        return fallback;
+      }
+
+      function round1(value) {
+        const rounded = Math.round(value * 10) / 10;
+        return rounded === 0 ? 0 : rounded;
+      }
+
+      function formatCleanNum(value, maxDecimals) {
+        const decimals = typeof maxDecimals === 'number' ? maxDecimals : 1;
+        const factor = Math.pow(10, decimals);
+        const rounded = Math.round(value * factor) / factor;
+        if (Math.abs(rounded) === 0) return '0';
+        return String(rounded);
+      }
+
+      function interpretFf(ff) {
+        const value = toFiniteNumber(ff, NaN);
+        if (!Number.isFinite(value)) {
+          return { level: 'red', label: '數值無效', hint: '' };
+        }
+        const shown = round1(value);
+        if (shown >= 25) {
+          return { level: 'red', label: 'FF 偏高', hint: CLOT_HINT };
+        }
+        return { level: 'green', label: 'FF 適宜', hint: '' };
+      }
+
+      function interpretDose(clearance) {
+        const value = toFiniteNumber(clearance, NaN);
+        if (!Number.isFinite(value)) {
+          return { level: 'amber', label: '數值無效', hint: '' };
+        }
+        const shown = round1(value);
+        if (shown < 20) {
+          return { level: 'amber', label: '劑量不足', hint: '劑量不足' };
+        }
+        if (shown > 35) {
+          return { level: 'amber', label: '劑量偏高', hint: '' };
+        }
+        return { level: 'green', label: '劑量適宜', hint: '' };
+      }
+
+      function computeCvvh(params) {
+        if (!params || typeof params !== 'object') {
+          return { ok: false, error: '請輸入有效的 CVVH 參數。' };
+        }
+
+        const dose = toFiniteNumber(params.dose, NaN);
+        const weightKg = toFiniteNumber(params.weightKg, NaN);
+        const ufNet = toFiniteNumber(params.ufNet, NaN);
+        const pbp = toFiniteNumber(params.pbp, NaN);
+        const qb = toFiniteNumber(params.qb, NaN);
+        const hct = toFiniteNumber(params.hct, NaN);
+        const prePct = toFiniteNumber(params.prePct, NaN);
+
+        if (![dose, weightKg, ufNet, pbp, qb, hct, prePct].every(Number.isFinite)) {
+          return { ok: false, error: '所有輸入欄位皆須為有效數值。' };
+        }
+        if (weightKg <= 0) {
+          return { ok: false, error: '體重（Body weight）必須大於 0 kg。' };
+        }
+        if (hct < 0 || hct >= 100) {
+          return { ok: false, error: '血比容（Hct）必須大於等於 0% 且小於 100%。' };
+        }
+        if (qb <= 0) {
+          return { ok: false, error: '血流速度（Qb）必須大於 0 mL/min。' };
+        }
+        if (dose < 0) {
+          return { ok: false, error: '置換液劑量（RF dose）不可小於 0 mL/kg/h。' };
+        }
+        if (prePct < 0 || prePct > 100) {
+          return { ok: false, error: 'Pre-dilution 比例必須介於 0% 至 100% 之間。' };
+        }
+        if (pbp < 0 || ufNet < 0) {
+          return { ok: false, error: 'PBP 與 UF net 不可小於 0 mL/h。' };
+        }
+
+        const rf = dose * weightKg;
+        const qpre = (rf * prePct) / 100 + pbp;
+        const qp = (qb * 60 * (100 - hct)) / 100;
+        const totalUF = rf + pbp + ufNet;
+        const denom = qp + qpre;
+
+        if (!(denom > 0) || !Number.isFinite(denom)) {
+          return { ok: false, error: '血漿流速與前稀釋液流速總和（Qp + Qpre）必須大於 0。' };
+        }
+
+        const df = qp / denom;
+        const ff = (totalUF / denom) * 100;
+        const clearance = (totalUF * df) / weightKg;
+
+        if (![rf, qpre, qp, totalUF, df, ff, clearance].every(Number.isFinite)) {
+          return { ok: false, error: '計算結果超出有效數值範圍。' };
+        }
+
+        return {
+          ok: true,
+          error: null,
+          dose,
+          weightKg,
+          ufNet,
+          pbp,
+          qb,
+          hct,
+          prePct,
+          rf,
+          qpre,
+          qp,
+          totalUF,
+          df,
+          ff,
+          clearance,
+          ffStatus: interpretFf(ff),
+          doseStatus: interpretDose(clearance)
+        };
+      }
+
+      function formatConsult(inputOrResult) {
+        if (!inputOrResult || typeof inputOrResult !== 'object') return '';
+        const r = typeof inputOrResult.ok === 'boolean'
+          ? inputOrResult
+          : computeCvvh(inputOrResult);
+        if (!r || !r.ok) return '';
+
+        const qbStr = formatCleanNum(r.qb, 1);
+        const rfStr = formatCleanNum(r.rf, 1);
+        const preStr = formatCleanNum(r.prePct, 1);
+        const pbpStr = formatCleanNum(r.pbp, 1);
+        const ufNetStr = formatCleanNum(r.ufNet, 1);
+        const ffStr = round1(r.ff).toFixed(1);
+        const doseStr = round1(r.clearance).toFixed(1);
+
+        return 'CVVH：Qb ' + qbStr + ' mL/min、RF ' + rfStr + ' mL/h（pre ' + preStr +
+          '%）、PBP ' + pbpStr + ' mL/h、UF net ' + ufNetStr + ' mL/h → FF ' + ffStr +
+          '%、預估有效劑量 ' + doseStr + ' mL/kg/h';
+      }
+      // ===== end CVVH dosing core
+
+      const el = {
+        doseSlider: document.getElementById('dose-slider'),
+        weightSlider: document.getElementById('weight-slider'),
+        ufnetSlider: document.getElementById('ufnet-slider'),
+        pbpSlider: document.getElementById('pbp-slider'),
+        qbSlider: document.getElementById('qb-slider'),
+        hctSlider: document.getElementById('hct-slider'),
+        preSlider: document.getElementById('pre-slider'),
+        doseVal: document.getElementById('dose-val'),
+        weightVal: document.getElementById('weight-val'),
+        ufnetVal: document.getElementById('ufnet-val'),
+        pbpVal: document.getElementById('pbp-val'),
+        qbVal: document.getElementById('qb-val'),
+        hctVal: document.getElementById('hct-val'),
+        preVal: document.getElementById('pre-val'),
+        errorBox: document.getElementById('error-box'),
+        resultsValid: document.getElementById('results-valid'),
+        ffCard: document.getElementById('ff-card'),
+        ffBadge: document.getElementById('ff-badge'),
+        ffVal: document.getElementById('ff-val'),
+        ffHint: document.getElementById('ff-hint'),
+        doseCard: document.getElementById('dose-card'),
+        doseBadge: document.getElementById('dose-badge'),
+        clearanceVal: document.getElementById('clearance-val'),
+        doseHint: document.getElementById('dose-hint'),
+        totalUfVal: document.getElementById('total-uf-val'),
+        dfVal: document.getElementById('df-val'),
+        dispRf: document.getElementById('disp-rf'),
+        dispQpre: document.getElementById('disp-qpre'),
+        dispQp: document.getElementById('disp-qp'),
+        consultText: document.getElementById('consult-text'),
+        copyBtn: document.getElementById('copy-btn')
+      };
+
+      const sliders = [
+        { input: el.doseSlider, unit: 'mL/kg/h' },
+        { input: el.weightSlider, unit: 'kg' },
+        { input: el.ufnetSlider, unit: 'mL/h' },
+        { input: el.pbpSlider, unit: 'mL/h' },
+        { input: el.qbSlider, unit: 'mL/min' },
+        { input: el.hctSlider, unit: '%' },
+        { input: el.preSlider, unit: '%' }
+      ];
+
+      let lastConsult = '';
+      let copyResetTimer = null;
+
+      function updateRangeFills() {
+        sliders.forEach(({ input, unit }) => {
+          const min = Number(input.min);
+          const max = Number(input.max);
+          const val = Number(input.value);
+          const pct = max > min ? ((val - min) / (max - min)) * 100 : 0;
+          input.style.setProperty('--range-progress', Math.max(0, Math.min(100, pct)) + '%');
+          input.setAttribute('aria-valuetext', input.value + ' ' + unit);
+        });
+      }
+
+      function readInputs() {
+        return {
+          dose: toFiniteNumber(el.doseSlider.value, NaN),
+          weightKg: toFiniteNumber(el.weightSlider.value, NaN),
+          ufNet: toFiniteNumber(el.ufnetSlider.value, NaN),
+          pbp: toFiniteNumber(el.pbpSlider.value, NaN),
+          qb: toFiniteNumber(el.qbSlider.value, NaN),
+          hct: toFiniteNumber(el.hctSlider.value, NaN),
+          prePct: toFiniteNumber(el.preSlider.value, NaN)
+        };
+      }
+
+      function applyCardTone(cardEl, level) {
+        cardEl.classList.remove('state-green', 'state-red', 'state-amber', 'state-blue');
+        cardEl.classList.add('state-' + level);
+      }
+
+      function applyBadge(badgeEl, level, text) {
+        badgeEl.classList.remove('is-green', 'is-red', 'is-amber');
+        badgeEl.classList.add('is-' + level);
+        badgeEl.textContent = text;
+      }
+
+      function applyHint(hintEl, level, text) {
+        hintEl.classList.remove('is-red', 'is-amber');
+        if (text) {
+          hintEl.classList.add('is-' + level);
+          hintEl.textContent = text;
+          hintEl.hidden = false;
+        } else {
+          hintEl.textContent = '';
+          hintEl.hidden = true;
+        }
+      }
+
+      function update() {
+        const p = readInputs();
+
+        el.doseVal.textContent = Number.isFinite(p.dose) ? formatCleanNum(p.dose, 1) : '—';
+        el.weightVal.textContent = Number.isFinite(p.weightKg) ? formatCleanNum(p.weightKg, 1) : '—';
+        el.ufnetVal.textContent = Number.isFinite(p.ufNet) ? formatCleanNum(p.ufNet, 1) : '—';
+        el.pbpVal.textContent = Number.isFinite(p.pbp) ? formatCleanNum(p.pbp, 1) : '—';
+        el.qbVal.textContent = Number.isFinite(p.qb) ? formatCleanNum(p.qb, 1) : '—';
+        el.hctVal.textContent = Number.isFinite(p.hct) ? formatCleanNum(p.hct, 1) : '—';
+        el.preVal.textContent = Number.isFinite(p.prePct) ? formatCleanNum(p.prePct, 1) : '—';
+        updateRangeFills();
+
+        const r = computeCvvh(p);
+        if (!r.ok) {
+          el.errorBox.textContent = r.error || '輸入參數無效，請重新確認設定。';
+          el.errorBox.hidden = false;
+          el.resultsValid.hidden = true;
+          lastConsult = '';
+          el.consultText.textContent = '';
+          return;
+        }
+
+        el.errorBox.hidden = true;
+        el.errorBox.textContent = '';
+        el.resultsValid.hidden = false;
+
+        // FF card
+        const ffStatus = r.ffStatus;
+        applyCardTone(el.ffCard, ffStatus.level);
+        applyBadge(el.ffBadge, ffStatus.level, ffStatus.label);
+        el.ffVal.textContent = round1(r.ff).toFixed(1);
+        applyHint(el.ffHint, ffStatus.level, ffStatus.hint);
+
+        // Effective (predicted) dose card
+        const doseStatus = r.doseStatus;
+        applyCardTone(el.doseCard, doseStatus.level);
+        applyBadge(el.doseBadge, doseStatus.level, doseStatus.label);
+        el.clearanceVal.textContent = round1(r.clearance).toFixed(1);
+        applyHint(el.doseHint, doseStatus.level, doseStatus.hint);
+
+        // Total UF & DF
+        el.totalUfVal.textContent = formatCleanNum(r.totalUF, 1);
+        el.dfVal.textContent = r.df.toFixed(3);
+
+        // Intermediates
+        el.dispRf.textContent = formatCleanNum(r.rf, 1) + ' mL/h';
+        el.dispQpre.textContent = formatCleanNum(r.qpre, 1) + ' mL/h';
+        el.dispQp.textContent = formatCleanNum(r.qp, 1) + ' mL/h';
+
+        // Consult summary
+        lastConsult = formatConsult(r);
+        el.consultText.textContent = lastConsult;
+        if (copyResetTimer) {
+          clearTimeout(copyResetTimer);
+          copyResetTimer = null;
+        }
+        el.copyBtn.textContent = '複製';
+      }
+
+      sliders.forEach(({ input }) => {
+        input.addEventListener('input', update, { passive: true });
+        input.addEventListener('change', update);
+      });
+
+      function bindCopy(btn, getText) {
+        btn.addEventListener('click', async () => {
+          const text = getText();
+          if (!text) return;
+          try {
+            await navigator.clipboard.writeText(text);
+            btn.textContent = '已複製';
+          } catch (err) {
+            const area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            area.remove();
+            btn.textContent = '已複製';
+          }
+          if (copyResetTimer) clearTimeout(copyResetTimer);
+          copyResetTimer = setTimeout(() => {
+            btn.textContent = '複製';
+            copyResetTimer = null;
+          }, 1600);
+        });
+      }
+
+      bindCopy(el.copyBtn, () => lastConsult);
+
+      document.documentElement.dataset.appVersion = APP_VERSION;
+      update();
+    })();
+  </script>
+</body>
+</html>
