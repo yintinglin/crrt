@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#16a34a">
   <meta name="description" content="CVVH 劑量計算器：依置換液劑量（RF dose）、體重、UF net、PBP、血流速度 Qb、Hct 與 pre-dilution 比例，計算 Filtration Fraction（FF）、稀釋係數 DF 與預估有效劑量。">
-  <title>CVVH 劑量計算器 v261121B</title>
+  <title>CVVH 劑量計算器 v261121C</title>
   <style>
     :root {
       --green: #16a34a;
@@ -154,10 +154,60 @@
       letter-spacing: 0.45px;
     }
 
+    .toggle-button:focus-visible,
     input[type="range"]:focus-visible,
     .copy-btn:focus-visible {
       outline: 3px solid rgba(37, 99, 235, 0.28);
       outline-offset: 3px;
+    }
+
+    .toggle-field { margin-bottom: 20px; }
+    .toggle-field:last-child { margin-bottom: 0; }
+
+    .toggle-label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text);
+      font-size: 14.5px;
+      line-height: 1.4;
+      font-weight: 700;
+    }
+
+    .toggle-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .toggle-button {
+      min-height: 44px;
+      padding: 9px 10px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      color: #475569;
+      background: #e8ecea;
+      font-family: var(--numeric-font);
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    .toggle-button[aria-pressed="true"] {
+      color: #fff;
+      background: var(--green);
+      box-shadow: 0 3px 9px rgba(22, 163, 74, 0.22);
+    }
+
+    .toggle-button:hover { border-color: #c8d2cd; }
+    .toggle-button[aria-pressed="true"]:hover { border-color: #15803d; }
+
+    .toggle-note {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
     }
 
     .range-field { margin-bottom: 20px; }
@@ -636,6 +686,10 @@
       .results { padding: 32px; }
 
       .section-label { margin-bottom: 16px; font-size: 14px; }
+      .toggle-field { margin-bottom: 22px; }
+      .toggle-label { font-size: 15px; }
+      .toggle-switch { gap: 10px; }
+      .toggle-button { min-height: 46px; font-size: 15.5px; }
       .range-field { margin-bottom: 22px; }
       .range-heading label { font-size: 15px; }
       .range-value { font-size: 29px; }
@@ -685,6 +739,8 @@
       .version-badge { font-size: 13px; }
       .controls,
       .results { padding: 28px 30px; }
+      .toggle-label { font-size: 15px; }
+      .toggle-button { min-height: 46px; font-size: 15.5px; }
       .range-heading label { font-size: 15px; }
       .range-value { font-size: 28px; }
       .metric-value { font-size: 32px; }
@@ -708,6 +764,7 @@
       .subtitle { font-size: 12.5px; }
       .version-badge { padding: 4px 9px; font-size: 12px; }
       .controls, .results { padding: 20px 18px; }
+      .toggle-label { font-size: 14px; }
       .range-heading label { font-size: 14px; }
       .range-value { font-size: 24px; }
       .range-value .unit { font-size: 12.5px; }
@@ -745,33 +802,30 @@
             <p class="subtitle">FF 與預估有效劑量 · 只適用 CVVH（不可用於 CVVHD／CVVHDF）</p>
           </div>
         </div>
-        <span class="version-badge" aria-label="版本 v261121B">v261121B</span>
+        <span class="version-badge" aria-label="版本 v261121C">v261121C</span>
       </header>
 
       <div class="workspace">
         <section class="controls" aria-label="CVVH 設定參數">
           <span class="section-label">CVVH 處方與病人參數</span>
 
-          <div class="range-field">
-            <div class="range-heading">
-              <label for="dose-slider">置換液劑量 RF dose（不含 PBP、UF net）</label>
-              <output class="range-value" for="dose-slider" aria-live="polite"><span id="dose-val">20</span><span class="unit"> mL/kg/h</span></output>
+          <div class="toggle-field">
+            <span class="toggle-label">置換液劑量 RF dose（不含 PBP、UF net）</span>
+            <div class="toggle-switch" role="group" aria-label="置換液劑量 RF dose（不含 PBP、UF net）">
+              <button type="button" id="dose-20" class="toggle-button" aria-pressed="true">20 mL/kg/h</button>
+              <button type="button" id="dose-25" class="toggle-button" aria-pressed="false">25 mL/kg/h</button>
             </div>
-            <div class="range-control">
-              <input type="range" id="dose-slider" min="5" max="50" value="20" step="0.5" aria-label="置換液劑量 RF dose（不含 PBP、UF net），mL/kg/h">
-            </div>
-            <div class="range-scale" aria-hidden="true"><span>5 mL/kg/h</span><span>50 mL/kg/h</span></div>
           </div>
 
           <div class="range-field">
             <div class="range-heading">
               <label for="weight-slider">體重 Body weight</label>
-              <output class="range-value" for="weight-slider" aria-live="polite"><span id="weight-val">70</span><span class="unit"> kg</span></output>
+              <output class="range-value" for="weight-slider" aria-live="polite"><span id="weight-val">60</span><span class="unit"> kg</span></output>
             </div>
             <div class="range-control">
-              <input type="range" id="weight-slider" min="30" max="200" value="70" step="1" aria-label="體重 Body weight，公斤">
+              <input type="range" id="weight-slider" min="30" max="150" value="60" step="1" aria-label="體重 Body weight，公斤">
             </div>
-            <div class="range-scale" aria-hidden="true"><span>30 kg</span><span>200 kg</span></div>
+            <div class="range-scale" aria-hidden="true"><span>30 kg</span><span>150 kg</span></div>
           </div>
 
           <div class="range-field">
@@ -780,20 +834,18 @@
               <output class="range-value" for="ufnet-slider" aria-live="polite"><span id="ufnet-val">100</span><span class="unit"> mL/h</span></output>
             </div>
             <div class="range-control">
-              <input type="range" id="ufnet-slider" min="0" max="1000" value="100" step="10" aria-label="UF net，mL/h">
+              <input type="range" id="ufnet-slider" min="0" max="100" value="100" step="10" aria-label="UF net，mL/h">
             </div>
-            <div class="range-scale" aria-hidden="true"><span>0 mL/h</span><span>1000 mL/h</span></div>
+            <div class="range-scale" aria-hidden="true"><span>0 mL/h</span><span>100 mL/h</span></div>
           </div>
 
-          <div class="range-field">
-            <div class="range-heading">
-              <label for="pbp-slider">PBP</label>
-              <output class="range-value" for="pbp-slider" aria-live="polite"><span id="pbp-val">500</span><span class="unit"> mL/h</span></output>
+          <div class="toggle-field">
+            <span class="toggle-label">PBP</span>
+            <div class="toggle-switch" role="group" aria-label="PBP">
+              <button type="button" id="pbp-0" class="toggle-button" aria-pressed="false">0 mL/h</button>
+              <button type="button" id="pbp-500" class="toggle-button" aria-pressed="true">500 mL/h</button>
             </div>
-            <div class="range-control">
-              <input type="range" id="pbp-slider" min="0" max="2000" value="500" step="10" aria-label="PBP，mL/h">
-            </div>
-            <div class="range-scale" aria-hidden="true"><span>0 mL/h</span><span>2000 mL/h</span></div>
+            <p class="toggle-note">部分機台無 PBP → 選 0</p>
           </div>
 
           <div class="range-field">
@@ -802,9 +854,9 @@
               <output class="range-value" for="qb-slider" aria-live="polite"><span id="qb-val">100</span><span class="unit"> mL/min</span></output>
             </div>
             <div class="range-control">
-              <input type="range" id="qb-slider" min="50" max="400" value="100" step="5" aria-label="血流速度 Blood flow Qb，mL/min">
+              <input type="range" id="qb-slider" min="100" max="200" value="100" step="5" aria-label="血流速度 Blood flow Qb，mL/min">
             </div>
-            <div class="range-scale" aria-hidden="true"><span>50 mL/min</span><span>400 mL/min</span></div>
+            <div class="range-scale" aria-hidden="true"><span>100 mL/min</span><span>200 mL/min</span></div>
           </div>
 
           <div class="range-field">
@@ -813,20 +865,17 @@
               <output class="range-value" for="hct-slider" aria-live="polite"><span id="hct-val">30</span><span class="unit">%</span></output>
             </div>
             <div class="range-control">
-              <input type="range" id="hct-slider" min="15" max="60" value="30" step="1" aria-label="血比容 Hct，百分比">
+              <input type="range" id="hct-slider" min="15" max="45" value="30" step="1" aria-label="血比容 Hct，百分比">
             </div>
-            <div class="range-scale" aria-hidden="true"><span>15%</span><span>60%</span></div>
+            <div class="range-scale" aria-hidden="true"><span>15%</span><span>45%</span></div>
           </div>
 
-          <div class="range-field">
-            <div class="range-heading">
-              <label for="pre-slider">Pre-dilution 比例</label>
-              <output class="range-value" for="pre-slider" aria-live="polite"><span id="pre-val">70</span><span class="unit">%</span></output>
+          <div class="toggle-field">
+            <span class="toggle-label">Pre-dilution 比例</span>
+            <div class="toggle-switch" role="group" aria-label="Pre-dilution 比例">
+              <button type="button" id="pre-50" class="toggle-button" aria-pressed="false">50%</button>
+              <button type="button" id="pre-70" class="toggle-button" aria-pressed="true">70%</button>
             </div>
-            <div class="range-control">
-              <input type="range" id="pre-slider" min="0" max="100" value="70" step="1" aria-label="Pre-dilution 比例，百分比">
-            </div>
-            <div class="range-scale" aria-hidden="true"><span>0%</span><span>100%</span></div>
           </div>
         </section>
 
@@ -847,7 +896,7 @@
               <div class="dose-values">
                 <div class="dose-metric">
                   <span class="metric-label">濾過分率</span>
-                  <span class="metric-value"><span id="ff-val">35.2</span><span class="metric-unit">%</span></span>
+                  <span class="metric-value"><span id="ff-val">32.5</span><span class="metric-unit">%</span></span>
                 </div>
               </div>
               <p id="ff-hint" class="dose-hint is-red">容易 clot：可提高 Qb、提高 pre-dilution 比例，必要時降低 RF dose</p>
@@ -864,7 +913,7 @@
               <div class="dose-values">
                 <div class="dose-metric">
                   <span class="metric-label">Effective (predicted) dose / Solute clearance</span>
-                  <span class="metric-value"><span id="clearance-val">21.1</span><span class="metric-unit">mL/kg/h</span></span>
+                  <span class="metric-value"><span id="clearance-val">22.7</span><span class="metric-unit">mL/kg/h</span></span>
                 </div>
               </div>
               <p id="dose-hint" class="dose-hint is-amber" hidden></p>
@@ -881,11 +930,11 @@
               <div class="dose-values dose-two">
                 <div class="dose-metric">
                   <span class="metric-label">Total UF</span>
-                  <span class="metric-value"><span id="total-uf-val">2000</span><span class="metric-unit">mL/h</span></span>
+                  <span class="metric-value"><span id="total-uf-val">1800</span><span class="metric-unit">mL/h</span></span>
                 </div>
                 <div class="dose-metric">
                   <span class="metric-label">Dilution factor (DF)</span>
-                  <span class="metric-value" id="df-val">0.739</span>
+                  <span class="metric-value" id="df-val">0.758</span>
                 </div>
               </div>
               <p class="dose-detail">Total UF = RF + PBP + UF net；DF = Qp ÷ (Qp + Qpre)，DF 以血漿流速 Qp 計算（非全血 Qb）。</p>
@@ -895,11 +944,11 @@
               <div class="intermediates-grid">
                 <div class="intermediate-cell">
                   <div class="intermediate-name">RF <span class="intermediate-sub">置換液</span></div>
-                  <div class="intermediate-number" id="disp-rf">1400 mL/h</div>
+                  <div class="intermediate-number" id="disp-rf">1200 mL/h</div>
                 </div>
                 <div class="intermediate-cell">
                   <div class="intermediate-name">Qpre <span class="intermediate-sub">前稀釋液</span></div>
-                  <div class="intermediate-number" id="disp-qpre">1480 mL/h</div>
+                  <div class="intermediate-number" id="disp-qpre">1340 mL/h</div>
                 </div>
                 <div class="intermediate-cell">
                   <div class="intermediate-name">Qp <span class="intermediate-sub">血漿流速</span></div>
@@ -914,7 +963,7 @@
                 <span>紀錄用語</span>
                 <button type="button" class="copy-btn" id="copy-btn" aria-label="複製紀錄用語">複製</button>
               </div>
-              <p class="consult-text" id="consult-text">CVVH：Qb 100 mL/min、RF 1400 mL/h（pre 70%）、PBP 500 mL/h、UF net 100 mL/h → FF 35.2%、預估有效劑量 21.1 mL/kg/h</p>
+              <p class="consult-text" id="consult-text">CVVH：Qb 100 mL/min、RF 1200 mL/h（pre 70%）、PBP 500 mL/h、UF net 100 mL/h → FF 32.5%、預估有效劑量 22.7 mL/kg/h</p>
             </div>
           </div>
 
@@ -935,7 +984,7 @@
       <footer class="disclaimer">
         <p class="disclaimer-title">⚠️ 免責聲明 / Disclaimer</p>
         <p>本工具僅供醫療專業人員參考，不能取代臨床判斷；設定前請依院內 CRRT 規範確認。公式來源見下方參考資料。</p>
-        <p class="footer-version"><strong>版本：</strong>v261121B</p>
+        <p class="footer-version"><strong>版本：</strong>v261121C</p>
       </footer>
 
       <noscript><div class="noscript">此計算器需要啟用 JavaScript 才能更新計算結果。</div></noscript>
@@ -947,7 +996,7 @@
       'use strict';
 
       // ===== CVVH dosing core
-      const APP_VERSION = 'v261121B';
+      const APP_VERSION = 'v261121C';
       const CLOT_HINT = '容易 clot：可提高 Qb、提高 pre-dilution 比例，必要時降低 RF dose';
 
       function toFiniteNumber(value, fallback) {
@@ -1099,21 +1148,25 @@
       }
       // ===== end CVVH dosing core
 
+      function setGroupPressed(buttons, active) {
+        buttons.forEach(btn => btn.setAttribute('aria-pressed', btn === active ? 'true' : 'false'));
+      }
+
       const el = {
-        doseSlider: document.getElementById('dose-slider'),
+        dose20: document.getElementById('dose-20'),
+        dose25: document.getElementById('dose-25'),
         weightSlider: document.getElementById('weight-slider'),
         ufnetSlider: document.getElementById('ufnet-slider'),
-        pbpSlider: document.getElementById('pbp-slider'),
+        pbp0: document.getElementById('pbp-0'),
+        pbp500: document.getElementById('pbp-500'),
         qbSlider: document.getElementById('qb-slider'),
         hctSlider: document.getElementById('hct-slider'),
-        preSlider: document.getElementById('pre-slider'),
-        doseVal: document.getElementById('dose-val'),
+        pre50: document.getElementById('pre-50'),
+        pre70: document.getElementById('pre-70'),
         weightVal: document.getElementById('weight-val'),
         ufnetVal: document.getElementById('ufnet-val'),
-        pbpVal: document.getElementById('pbp-val'),
         qbVal: document.getElementById('qb-val'),
         hctVal: document.getElementById('hct-val'),
-        preVal: document.getElementById('pre-val'),
         errorBox: document.getElementById('error-box'),
         resultsValid: document.getElementById('results-valid'),
         ffCard: document.getElementById('ff-card'),
@@ -1133,14 +1186,17 @@
         copyBtn: document.getElementById('copy-btn')
       };
 
+      const state = {
+        dose: 20,
+        pbp: 500,
+        prePct: 70
+      };
+
       const sliders = [
-        { input: el.doseSlider, unit: 'mL/kg/h' },
         { input: el.weightSlider, unit: 'kg' },
         { input: el.ufnetSlider, unit: 'mL/h' },
-        { input: el.pbpSlider, unit: 'mL/h' },
         { input: el.qbSlider, unit: 'mL/min' },
-        { input: el.hctSlider, unit: '%' },
-        { input: el.preSlider, unit: '%' }
+        { input: el.hctSlider, unit: '%' }
       ];
 
       let lastConsult = '';
@@ -1159,13 +1215,13 @@
 
       function readInputs() {
         return {
-          dose: toFiniteNumber(el.doseSlider.value, NaN),
+          dose: state.dose,
           weightKg: toFiniteNumber(el.weightSlider.value, NaN),
           ufNet: toFiniteNumber(el.ufnetSlider.value, NaN),
-          pbp: toFiniteNumber(el.pbpSlider.value, NaN),
+          pbp: state.pbp,
           qb: toFiniteNumber(el.qbSlider.value, NaN),
           hct: toFiniteNumber(el.hctSlider.value, NaN),
-          prePct: toFiniteNumber(el.preSlider.value, NaN)
+          prePct: state.prePct
         };
       }
 
@@ -1195,13 +1251,10 @@
       function update() {
         const p = readInputs();
 
-        el.doseVal.textContent = Number.isFinite(p.dose) ? formatCleanNum(p.dose, 1) : '—';
         el.weightVal.textContent = Number.isFinite(p.weightKg) ? formatCleanNum(p.weightKg, 1) : '—';
         el.ufnetVal.textContent = Number.isFinite(p.ufNet) ? formatCleanNum(p.ufNet, 1) : '—';
-        el.pbpVal.textContent = Number.isFinite(p.pbp) ? formatCleanNum(p.pbp, 1) : '—';
         el.qbVal.textContent = Number.isFinite(p.qb) ? formatCleanNum(p.qb, 1) : '—';
         el.hctVal.textContent = Number.isFinite(p.hct) ? formatCleanNum(p.hct, 1) : '—';
-        el.preVal.textContent = Number.isFinite(p.prePct) ? formatCleanNum(p.prePct, 1) : '—';
         updateRangeFills();
 
         const r = computeCvvh(p);
@@ -1250,6 +1303,41 @@
         }
         el.copyBtn.textContent = '複製';
       }
+
+      function bindToggleGroup(entries, onSelect) {
+        const buttons = entries.map(item => item.btn);
+        entries.forEach(({ btn, value }) => {
+          btn.addEventListener('click', () => {
+            onSelect(value);
+            setGroupPressed(buttons, btn);
+            update();
+          });
+        });
+      }
+
+      bindToggleGroup(
+        [
+          { btn: el.dose20, value: 20 },
+          { btn: el.dose25, value: 25 }
+        ],
+        value => { state.dose = value; }
+      );
+
+      bindToggleGroup(
+        [
+          { btn: el.pbp0, value: 0 },
+          { btn: el.pbp500, value: 500 }
+        ],
+        value => { state.pbp = value; }
+      );
+
+      bindToggleGroup(
+        [
+          { btn: el.pre50, value: 50 },
+          { btn: el.pre70, value: 70 }
+        ],
+        value => { state.prePct = value; }
+      );
 
       sliders.forEach(({ input }) => {
         input.addEventListener('input', update, { passive: true });
